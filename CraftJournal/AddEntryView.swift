@@ -6,13 +6,24 @@ struct AddEntryView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
 
+    let entryToEdit: CraftEntry?
     @State private var title = ""
     @State private var craftType = crafts[0]
+    @State private var artisanName = ""
     @State private var notes = ""
     @State private var image: UIImage?
     @State private var showingCamera = false
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var saveError: String?
+
+    init(entryToEdit: CraftEntry? = nil) {
+        self.entryToEdit = entryToEdit
+        _title = State(initialValue: entryToEdit?.title ?? "")
+        _craftType = State(initialValue: entryToEdit?.craftType ?? crafts[0])
+        _artisanName = State(initialValue: entryToEdit?.artisanName ?? "")
+        _notes = State(initialValue: entryToEdit?.notes ?? "")
+        _image = State(initialValue: entryToEdit?.photo.flatMap(UIImage.init(data:)))
+    }
 
     var body: some View {
         NavigationStack {
@@ -23,6 +34,7 @@ struct AddEntryView: View {
                         Text(craft)
                     }
                 }
+                TextField("Artisan name", text: $artisanName)
                 TextField("Notes", text: $notes, axis: .vertical)
                     .lineLimit(3...8)
                 Section("Photo") {
@@ -37,7 +49,7 @@ struct AddEntryView: View {
                     PhotosPicker("Choose from Library", selection: $selectedPhoto, matching: .images)
                 }
             }
-            .navigationTitle("New Entry")
+            .navigationTitle(entryToEdit == nil ? "New Entry" : "Edit Entry")
             .fullScreenCover(isPresented: $showingCamera) {
                 CameraView(image: $image)
                     .ignoresSafeArea()
@@ -78,12 +90,15 @@ struct AddEntryView: View {
     }
 
     private func saveEntry() {
-        let entry = CraftEntry(context: viewContext)
-        entry.id = UUID()
+        let entry = entryToEdit ?? CraftEntry(context: viewContext)
+        if entryToEdit == nil {
+            entry.id = UUID()
+            entry.date = Date()
+        }
         entry.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
         entry.craftType = craftType
+        entry.artisanName = artisanName.trimmingCharacters(in: .whitespacesAndNewlines)
         entry.notes = notes
-        entry.date = Date()
         entry.photo = image?.jpegData(compressionQuality: 0.7)
         do {
             try viewContext.save()
