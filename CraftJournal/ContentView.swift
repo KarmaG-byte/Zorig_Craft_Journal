@@ -12,22 +12,62 @@ struct ContentView: View {
 
     @State private var showingAddEntry = false
     @State private var deleteError: String?
+    @State private var searchText = ""
+    @State private var selectedCraft = "All crafts"
+
+    private var filteredEntries: [CraftEntry] {
+        entries.filter { entry in
+            (selectedCraft == "All crafts" || entry.craftType == selectedCraft) &&
+            (searchText.isEmpty || (entry.title ?? "").localizedCaseInsensitiveContains(searchText))
+        }
+    }
 
     var body: some View {
         NavigationStack {
             List {
-                ForEach(entries) { entry in
-                    NavigationLink {
-                        EntryDetailView(entry: entry)
-                    } label: {
-                        EntryRow(entry: entry)
+                Section {
+                    if filteredEntries.isEmpty {
+                        VStack(spacing: 10) {
+                            Image(systemName: entries.isEmpty ? "book.closed" : "magnifyingglass")
+                                .font(.largeTitle)
+                                .foregroundStyle(.secondary)
+                            Text(entries.isEmpty ? "Your craft journal is empty" : "No matching entries")
+                                .font(.headline)
+                            Text(entries.isEmpty ? "Tap + to add your first craft." : "Try another search or craft filter.")
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 48)
+                    } else {
+                        ForEach(filteredEntries) { entry in
+                            NavigationLink {
+                                EntryDetailView(entry: entry)
+                            } label: {
+                                EntryRow(entry: entry)
+                            }
+                        }
+                        .onDelete(perform: deleteEntries)
                     }
+                } header: {
+                    Text("\(entries.count) \(entries.count == 1 ? "entry" : "entries")")
                 }
-                .onDelete(perform: deleteEntries)
             }
             .navigationTitle("Craft Journal")
+            .searchable(text: $searchText, prompt: "Search titles")
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Menu {
+                        Picker("Craft", selection: $selectedCraft) {
+                            Text("All crafts").tag("All crafts")
+                            ForEach(crafts, id: \.self) { craft in
+                                Text(craft).tag(craft)
+                            }
+                        }
+                    } label: {
+                        Label("Filter craft", systemImage: "line.3.horizontal.decrease.circle")
+                    }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
                         showingAddEntry = true
                     } label: {
@@ -51,7 +91,7 @@ struct ContentView: View {
     }
 
     private func deleteEntries(offsets: IndexSet) {
-        offsets.map { entries[$0] }.forEach(viewContext.delete)
+        offsets.map { filteredEntries[$0] }.forEach(viewContext.delete)
         do {
             try viewContext.save()
         } catch {
@@ -83,6 +123,11 @@ struct EntryRow: View {
                 Text(entry.craftType ?? "")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                if let artisanName = entry.artisanName, !artisanName.isEmpty {
+                    Text("Artisan: \(artisanName)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
     }
