@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct EntryDetailView: View {
     @ObservedObject var entry: CraftEntry
@@ -6,6 +7,13 @@ struct EntryDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
+                if let data = entry.photo, let image = UIImage(data: data) {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: .infinity)
+                        .accessibilityLabel("Photo of \(entry.title ?? "craft item")")
+                }
                 Text(entry.title ?? "Untitled")
                     .font(.largeTitle)
                     .bold()
